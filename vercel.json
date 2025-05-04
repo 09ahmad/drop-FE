@@ -5,30 +5,28 @@
         "src": "vite.config.ts",
         "use": "@vercel/static-build",
         "config": {
-          "distDir": "dist",
-          "cleanUrls": true
-        }
-      }
-    ],
-    "routes": [
-      {
-        "src": "/assets/(.*)",
-        "headers": {
-          "cache-control": "public, max-age=31536000, immutable"
-        }
-      },
-      {
-        "src": "/(.*)",
-        "dest": "/",
-        "headers": {
-          "cache-control": "no-cache"
+          "distDir": "dist"
         }
       }
     ],
     "rewrites": [
       {
         "source": "/api/(.*)",
-        "destination": "https://drop-be-six.vercel.app/api/$1"
+        "destination": "https://drop-be-six.vercel.app/api/v1/$1"
+      }
+    ],
+    "headers": [
+      {
+        "source": "/assets/(.*)",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        ]
+      },
+      {
+        "source": "/(.*)",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
       }
     ]
   }
