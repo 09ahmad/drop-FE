@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "./AuthContext";
+import { config } from "../config";
+
 export interface ProductImage {
   id: string;
   url: string;
@@ -23,8 +25,8 @@ interface ProductContextType {
   products: Product[];
   loading: boolean;
   error: string | null;
-  addProduct: (product: FormData) => Promise<void>;
-  updateProduct: (id: string, product: Partial<Product>) => Promise<void>;
+  addProduct: (product: FormData) => Promise<Product>;
+  updateProduct: (id: string, product: Partial<Product>) => Promise<Product>;
   deleteProduct: (id: string) => Promise<void>;
   getProduct: (id: string) => Product | undefined;
   fetchProducts: () => Promise<void>;
@@ -43,15 +45,28 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       const token = await getToken();
-      const response = await axios.get("http://localhost:3000/api/v1/item/product-details", {
+      if (!token) {
+        throw new Error("Authentication required");
+      }
+      
+      const response = await axios.get(`${config.apiBaseUrl}/item/product-details`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-      setProducts(response.data.productDetails);
+      
+      if (response.data?.productDetails) {
+        setProducts(response.data.productDetails);
+      } else {
+        throw new Error("Invalid response format");
+      }
     } catch (err) {
-      setError("Failed to fetch products");
+      const errorMessage = axios.isAxiosError(err) 
+        ? err.response?.data?.message || "Failed to fetch products"
+        : "Failed to fetch products";
+      setError(errorMessage);
       console.error("Error fetching products:", err);
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -66,15 +81,31 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       const token = await getToken();
-      const response = await axios.post("http://localhost:3000/api/v1/item/add-products", formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
-      });
-      setProducts([...products, response.data]);
+      if (!token) {
+        throw new Error("Authentication required");
+      }
+      
+      const response = await axios.post(
+        `${config.apiBaseUrl}/item/add-products`, 
+        formData, 
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      
+      if (response.data) {
+        setProducts(prev => [...prev, response.data]);
+        return response.data;
+      }
+      throw new Error("Invalid response format");
     } catch (err) {
-      setError("Failed to add product");
+      const errorMessage = axios.isAxiosError(err) 
+        ? err.response?.data?.message || "Failed to add product"
+        : "Failed to add product";
+      setError(errorMessage);
       console.error("Error adding product:", err);
       throw err;
     } finally {
@@ -87,18 +118,34 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       const token = await getToken();
-      const response = await axios.put(`http://localhost:3000/api/v1/item/update-products/${id}`, updatedFields, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      setProducts(
-        products.map((product) =>
-          product.id === id ? response.data.updatedProduct : product
-        )
+      if (!token) {
+        throw new Error("Authentication required");
+      }
+      
+      const response = await axios.put(
+        `${config.apiBaseUrl}/item/update-products/${id}`,
+        updatedFields,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
+      
+      if (response.data?.updatedProduct) {
+        setProducts(prev => 
+          prev.map(product => 
+            product.id === id ? response.data.updatedProduct : product
+          )
+        );
+        return response.data.updatedProduct;
+      }
+      throw new Error("Invalid response format");
     } catch (err) {
-      setError("Failed to update product");
+      const errorMessage = axios.isAxiosError(err) 
+        ? err.response?.data?.message || "Failed to update product"
+        : "Failed to update product";
+      setError(errorMessage);
       console.error("Error updating product:", err);
       throw err;
     } finally {
@@ -111,14 +158,25 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       const token = await getToken();
-      await axios.delete(`http://localhost:3000/api/v1/item/delete-products/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      setProducts(products.filter((product) => product.id !== id));
+      if (!token) {
+        throw new Error("Authentication required");
+      }
+      
+      await axios.delete(
+        `${config.apiBaseUrl}/item/delete-products/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      
+      setProducts(prev => prev.filter(product => product.id !== id));
     } catch (err) {
-      setError("Failed to delete product");
+      const errorMessage = axios.isAxiosError(err) 
+        ? err.response?.data?.message || "Failed to delete product"
+        : "Failed to delete product";
+      setError(errorMessage);
       console.error("Error deleting product:", err);
       throw err;
     } finally {
@@ -127,7 +185,7 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const getProduct = (id: string) => {
-    return products.find((product) => product.id === id);
+    return products.find(product => product.id === id);
   };
 
   return (

@@ -1,0 +1,34 @@
+{
+    "version": 2,
+    "builds": [
+      {
+        "src": "vite.config.ts",
+        "use": "@vercel/static-build",
+        "config": {
+          "distDir": "dist",
+          "cleanUrls": true
+        }
+      }
+    ],
+    "routes": [
+      {
+        "src": "/assets/(.*)",
+        "headers": {
+          "cache-control": "public, max-age=31536000, immutable"
+        }
+      },
+      {
+        "src": "/(.*)",
+        "dest": "/",
+        "headers": {
+          "cache-control": "no-cache"
+        }
+      }
+    ],
+    "rewrites": [
+      {
+        "source": "/api/(.*)",
+        "destination": "https://drop-be-six.vercel.app/api/$1"
+      }
+    ]
+  }

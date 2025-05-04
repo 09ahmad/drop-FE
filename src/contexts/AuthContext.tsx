@@ -7,6 +7,7 @@ import {
   useEffect,
   ReactNode,
 } from "react";
+import { config } from "../config";
 
 // Define user types
 export interface User {
@@ -16,7 +17,7 @@ export interface User {
   role?: "admin" | "client";
 }
 
-interface GoogleUser {  
+interface GoogleUser {
   email: string;
   name: string;
   picture: string;
@@ -43,35 +44,39 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Create axios instance with base URL
 const api = axios.create({
-  baseURL: "http://localhost:3000/api/v1",
+  baseURL: config.apiBaseUrl,
 });
 
 // Add interceptor to handle token refresh
 api.interceptors.request.use(async (config) => {
   const accessToken = localStorage.getItem("accessToken");
-  
+
   if (accessToken) {
     try {
       // Check if token is expired
       const decoded = jwtDecode<DecodedToken>(accessToken);
       const currentTime = Date.now() / 1000;
-      
+
       if (decoded.exp < currentTime) {
         // Token is expired, try to refresh
         const refreshToken = localStorage.getItem("refreshToken");
         if (refreshToken) {
           try {
             const response = await axios.post(
-              "http://localhost:3000/api/v1/user/refresh-token",
+              // @ts-ignore
+              `${config.apiBaseUrl}/user/refresh-token`,
               { refreshToken }
             );
-            
-            const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data;
-            
+
+            const {
+              accessToken: newAccessToken,
+              refreshToken: newRefreshToken,
+            } = response.data;
+
             // Update tokens in localStorage
             localStorage.setItem("accessToken", newAccessToken);
             localStorage.setItem("refreshToken", newRefreshToken);
-            
+
             // Update header with new token
             config.headers.Authorization = `Bearer ${newAccessToken}`;
           } catch (error) {
@@ -79,7 +84,7 @@ api.interceptors.request.use(async (config) => {
             localStorage.removeItem("accessToken");
             localStorage.removeItem("refreshToken");
             localStorage.removeItem("user");
-            window.location.href = "/login"; // Redirect to login
+            window.location.href = "/login";
           }
         }
       } else {
@@ -90,7 +95,7 @@ api.interceptors.request.use(async (config) => {
       console.error("Token validation error", error);
     }
   }
-  
+
   return config;
 });
 
@@ -103,16 +108,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const checkAuth = async () => {
       const savedUser = localStorage.getItem("user");
       const accessToken = localStorage.getItem("accessToken");
-      
+
       if (savedUser && accessToken) {
         try {
           const parsedUser = JSON.parse(savedUser);
           setUser(parsedUser);
-          
+
           // Validate token
           const decoded = jwtDecode<DecodedToken>(accessToken);
           const currentTime = Date.now() / 1000;
-          
+
           if (decoded.exp < currentTime) {
             // Token expired, try refresh
             await refreshTokens();
@@ -127,23 +132,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       setIsLoading(false);
     };
-    
+
     checkAuth();
   }, []);
 
-  // Helper function to refresh tokens
   const refreshTokens = async (): Promise<boolean> => {
     const refreshToken = localStorage.getItem("refreshToken");
     if (!refreshToken) return false;
-    
+
     try {
       const response = await axios.post(
-        "http://localhost:3000/api/v1/user/refresh-token",
+        `${config.apiBaseUrl}/user/refresh-token`,
         { refreshToken }
       );
-      
+
       const { accessToken, refreshToken: newRefreshToken } = response.data;
-      
+
       localStorage.setItem("accessToken", accessToken);
       localStorage.setItem("refreshToken", newRefreshToken);
       return true;
@@ -154,6 +158,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.removeItem("refreshToken");
       localStorage.removeItem("user");
       setUser(null);
+      window.location.href = "/login";
       return false;
     }
   };
@@ -161,27 +166,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      const response = await axios.post(
-        "http://localhost:3000/api/v1/user/signin",
-        {
-          username: email,
-          password: password,
-        }
-      );
-      
+      const response = await axios.post(`${config.apiBaseUrl}/user/signin`, {
+        username: email,
+        password: password,
+      });
+
       const { user, accessToken, refreshToken } = response.data;
-      
+
       // Store tokens and user info
       localStorage.setItem("accessToken", accessToken);
       localStorage.setItem("refreshToken", refreshToken);
       localStorage.setItem("user", JSON.stringify(user));
-      
-      // For backward compatibility
-      localStorage.setItem("token", accessToken);
-      
+
       setUser(user);
     } catch (error) {
-      throw new Error("Invalid email or password");
+      let errorMessage = "Invalid email or password";
+      if (axios.isAxiosError(error) && error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -204,10 +207,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         role: "client",
       };
 
-      // For Google login, we use the credential as the token
-      // In a production app, you would exchange this with your backend
       localStorage.setItem("accessToken", credential);
-      localStorage.setItem("token", credential); // For backward compatibility
+      localStorage.setItem("token", credential); 
       localStorage.setItem("user", JSON.stringify(user));
       setUser(user);
     } catch (error) {
@@ -222,26 +223,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
       const response = await axios.post(
-        "http://localhost:3000/api/v1/user/admin-login",
+        `${config.apiBaseUrl}/user/admin-login`,
         {
           username: email,
           password: password,
         }
       );
-      
+
       const { admin, accessToken, refreshToken } = response.data;
-      
+
       // Store tokens and admin info
       localStorage.setItem("accessToken", accessToken);
       localStorage.setItem("refreshToken", refreshToken);
       localStorage.setItem("user", JSON.stringify(admin));
-      
-      // For backward compatibility
-      localStorage.setItem("token", accessToken);
-      
+
       setUser(admin);
-    } catch (e) {
-      throw new Error("Invalid admin credentials");
+    } catch (error) {
+      let errorMessage = "Invalid admin credentials";
+      if (axios.isAxiosError(error) && error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -250,48 +252,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     try {
       const accessToken = localStorage.getItem("accessToken");
-      
+
       if (accessToken) {
         // Try server-side logout
         try {
           await axios.post(
-            "http://localhost:3000/api/v1/user/logout",
+            `${config.apiBaseUrl}/user/logout`,
             {},
             {
               headers: {
-                Authorization: `Bearer ${accessToken}`
-              }
+                Authorization: `Bearer ${accessToken}`,
+              },
             }
           );
         } catch (error) {
           console.error("Server logout failed", error);
-          // Continue with client-side logout even if server logout fails
         }
       }
     } finally {
-      // Always clear local state regardless of server response
+      // Always clear local state
       setUser(null);
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
       localStorage.removeItem("user");
-      localStorage.removeItem("token"); // Remove legacy token
     }
   };
 
   const isAdmin = () => {
     return user?.role === "admin";
   };
-  
+
   const getToken = async (): Promise<string | null> => {
-    // Try to get the new access token first
     const accessToken = localStorage.getItem("accessToken");
-    
+
     if (accessToken) {
       try {
         // Validate token
         const decoded = jwtDecode<DecodedToken>(accessToken);
         const currentTime = Date.now() / 1000;
-        
+
         if (decoded.exp < currentTime) {
           // Token expired, try refresh
           const refreshed = await refreshTokens();
@@ -300,18 +299,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
           return null;
         }
-        
+
         return accessToken;
       } catch (error) {
         console.error("Token validation failed", error);
         return null;
       }
     }
-    
-    // Fallback for backward compatibility
-    return localStorage.getItem("token");
+
+    return null;
   };
-  
+
   return (
     <AuthContext.Provider
       value={{
