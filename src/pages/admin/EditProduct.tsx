@@ -17,6 +17,7 @@ import AdminLayout from "@/components/AdminLayout";
 import { useToast } from "@/components/ui/use-toast";
 import axios from "axios";
 import { useAuth } from "@/contexts/AuthContext";
+import { config } from "@/config";
 
 interface ProductImage {
   id: string;
@@ -50,7 +51,7 @@ const EditProduct = () => {
       try {
         const token = await getToken();
         const response = await axios.get(
-          `http://localhost:3000/api/v1/item/item-details/${id}`,
+          `${config.apiBaseUrl}/item/item-details/${id}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -186,7 +187,7 @@ const EditProduct = () => {
       });
 
       const response = await axios.put(
-        `http://localhost:3000/api/v1/item/update-products/${id}`,
+        `${config.apiBaseUrl}/item/update-products/${id}`,
         formDataToSend,
         {
           headers: {

@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import axios from "axios";
 import { useAuth } from "@/contexts/AuthContext";
 import { GoogleLogin } from "@react-oauth/google";
+import { config } from "@/config";
 
 const Signup = () => {
   const [name, setName] = useState("");
@@ -29,7 +30,7 @@ const Signup = () => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post("http://localhost:3000/api/v1/user/signup", {
+      const response = await axios.post(`${config.apiBaseUrl}/user/signup`, {
         fullName: name,
         username: email,
         password,

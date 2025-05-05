@@ -7,6 +7,7 @@ import AdminLayout from "@/components/AdminLayout";
 import { useProducts } from "@/contexts/ProductContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { config } from "@/config";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -53,7 +54,7 @@ const Dashboard = () => {
     if (confirm("Are you sure you want to delete this product?")) {
       try {
         const token = await getToken();
-        await fetch(`http://localhost:3000/api/v1/item/delete-products/${id}`, {
+        await fetch(`${config.apiBaseUrl}/item/delete-products/${id}`, {
           method: "DELETE",
           headers: {
             Authorization: `Bearer ${token}`,

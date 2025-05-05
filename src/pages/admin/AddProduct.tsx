@@ -15,18 +15,37 @@ import {
 import { Upload, X } from "lucide-react";
 import AdminLayout from "@/components/AdminLayout";
 import { useToast } from "@/components/ui/use-toast";
-import axios from "axios";
-import { useAuth } from "@/contexts/AuthContext";
+import { useProducts } from "@/contexts/ProductContext"; 
+
+const currencies = [
+  { code: "USD", symbol: "$", name: "US Dollar" },
+  { code: "INR", symbol: "₹", name: "Indian Rupee" },
+  { code: "AED", symbol: "د.إ", name: "UAE Dirham" },
+  { code: "KWD", symbol: "د.ك", name: "Kuwaiti Dinar" },
+];
+
+const categories = [
+  "Electronics",
+  "Clothing",
+  "Home & Kitchen",
+  "Beauty",
+  "Toys",
+  "Sports",
+  "Books",
+  "Food",
+  "Other",
+];
 
 const AddProduct = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { getToken } = useAuth();
+  const { addProduct } = useProducts(); 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     price: "",
+    currency: "USD",
     category: "",
     stock: "",
   });
@@ -88,13 +107,13 @@ const AddProduct = () => {
     setIsSubmitting(true);
 
     try {
-      const token = await getToken();
       const formDataToSend = new FormData();
       
       // Append product data
       formDataToSend.append("name", formData.name);
       formDataToSend.append("description", formData.description);
       formDataToSend.append("price", formData.price);
+      formDataToSend.append("currency", formData.currency);
       formDataToSend.append("category", formData.category);
       formDataToSend.append("stock", formData.stock);
       
@@ -103,16 +122,7 @@ const AddProduct = () => {
         formDataToSend.append("images", image.file);
       });
 
-      const response = await axios.post(
-        "http://localhost:3000/api/v1/item/add-products",
-        formDataToSend,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
+      await addProduct(formDataToSend);
 
       toast({
         title: "Product added successfully",
@@ -131,18 +141,6 @@ const AddProduct = () => {
       setIsSubmitting(false);
     }
   };
-
-  const categories = [
-    "Electronics",
-    "Clothing",
-    "Home & Kitchen",
-    "Beauty",
-    "Toys",
-    "Sports",
-    "Books",
-    "Food",
-    "Other",
-  ];
 
   return (
     <AdminLayout>
@@ -179,18 +177,38 @@ const AddProduct = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="price">Price ($) *</Label>
-                <Input
-                  id="price"
-                  name="price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.price}
-                  onChange={handleChange}
-                  placeholder="e.g. 49.99"
-                  required
-                />
+                <Label htmlFor="price">Price *</Label>
+                <div className="flex gap-2">
+                  <Select
+                    value={formData.currency}
+                    onValueChange={(value) => handleSelectChange("currency", value)}
+                  >
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue placeholder="Currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencies.map((currency) => (
+                        <SelectItem key={currency.code} value={currency.code}>
+                          <div className="flex items-center gap-2">
+                            <span>{currency.symbol}</span>
+                            <span>{currency.code}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    id="price"
+                    name="price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.price}
+                    onChange={handleChange}
+                    placeholder={`e.g. 49.99`}
+                    required
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
