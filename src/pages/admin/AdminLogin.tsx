@@ -51,6 +51,9 @@ const AdminLogin = () => {
             <CardDescription className="text-center">
               Secure access for administrators only
             </CardDescription>
+            <CardDescription className="text-center">
+              For admin login try this   iamadmin@gmail.com && admin!@#1
+            </CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
